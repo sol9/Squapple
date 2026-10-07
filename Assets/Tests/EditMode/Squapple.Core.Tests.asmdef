@@ -2,6 +2,8 @@
     "name": "Squapple.Core.Tests",
     "rootNamespace": "Squapple.Core.Tests",
     "references": ["Squapple.Core", "Squapple.Gameplay"],
+    "overrideReferences": true,
+    "precompiledReferences": ["R3.dll", "nunit.framework.dll"],
     "includePlatforms": ["Editor"],
     "optionalUnityReferences": ["TestAssemblies"],
     "noEngineReferences": true

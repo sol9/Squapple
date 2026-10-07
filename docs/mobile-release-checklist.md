@@ -189,7 +189,7 @@ SDK·스토어 정책·지원 버전·계정별 테스트 요건은 작업 시�
 - 규칙 설정은 불변이며 입력·출력 숫자 배열은 복사한다. 외부 배열 수정으로 보드가 바뀌지 않는다.
 - 시드는 같은 런타임 내 재현에 사용한다. 런타임·버전이 달라도 같은 판을 복원하려면 초기 숫자 배열과 규칙을 저장한다.
 - **NUnit 테스트 35개 통과**: 5종 크기·256개 시드의 생성 보드 1,280개, 빈칸을 포함한 보드 300개의 독립 탐색 대조, 고정 사례의 경계·재현·불변성 확인 포함.
-- 실행은 설치된 Unity NUnit을 사용해 동일 테스트 소스를 별도 .NET 10 실행기로 검증했다. 로컬 결과는 `.utmp/core-tests/results.xml`에 있다. Unity가 Core·Tests 어셈블리를 생성한 것도 확인했으며, Unity Test Runner 자체에서의 테스트 실행과 모바일 빌드는 이번 검증에 포함하지 않는다.
+- 초기 검증은 설치된 Unity NUnit을 사용해 동일 테스트 소스를 별도 .NET 10 실행기로 수행했다. 로컬 결과는 `.utmp/core-tests/results.xml`에 있다. 이후 Unity Test Runner에서도 전체 규칙·세션 테스트를 실행했으며 결과는 아래 Unity CLI 검증 기록에 남긴다. 모바일 빌드는 포함하지 않는다.
 - Unity에서는 Test Runner의 EditMode에 있는 `Squapple.Core.Tests.GameBoardTests`를 실행할 수 있다. 총점·시간·진행 단계·R3 전달·화면 연결은 다음 단계다.
 
 리플레이를 위한 최소 경계는 `초기 보드 + 규칙/버전 + 확정된 선택 좌표·경과 시간`이다. 매 프레임 터치 좌표 저장이나 전체 리플레이 기능까지 이 단계에서 만들 필요는 없다.
@@ -228,10 +228,18 @@ SDK·스토어 정책·지원 버전·계정별 테스트 요건은 작업 시�
 - 선택 시점에도 시간 만료를 검사하므로, `Tick`이 먼저 호출됐는지와 무관하게 제한 시간 이상의 선택은 인정하지 않는다.
 - 모든 필드를 확정한 후 상태→선택→종료 순서로 알린다. 알림 도중 들어온 상태 변경 요청은 거부하며, 구독 순서를 바꿔도 결과가 같음을 검증했다.
 - 시간 갱신은 같은 읽기 전용 숫자 배열을 사용한다. 사과를 제거하면 새 스냅샷을 만들며 이전에 받은 상태는 바뀌지 않는다.
-- **전체 NUnit 테스트 59개 통과**: 기존 규칙 35개와 세션 24개. 같은 소스를 설치된 R3·Unity NUnit으로 별도 .NET 실행기에서 검증했다. 모바일 빌드와 실제 화면 연결은 포함하지 않는다.
+- **전체 NUnit 테스트 59개 통과**: 기존 규칙 35개와 세션 24개. 별도 .NET 실행기 검증에 이어 열린 Unity 에디터의 Test Runner에서도 통과했다. 모바일 빌드와 실제 화면 연결은 포함하지 않는다.
 - R3의 현재 상태·일회성 이벤트 구성은 설치 버전의 [ReactiveProperty](https://github.com/Cysharp/R3/blob/1.3.1/src/R3/ReactiveProperty.cs)와 [Subject](https://github.com/Cysharp/R3/blob/1.3.1/src/R3/Subject.cs) 계약을 확인해 적용했다.
 
 필수 작업의 순서는 직접 호출이나 명시적인 비동기 흐름으로 표현한다. 저장 완료와 광고 노출 순서를 서로 독립적인 구독자의 실행 순서에 맡기지 않는다.
+
+### Unity CLI 검증 기록 — 2026-10-07
+
+- Unity CLI `1.0.0-beta.12`와 프로젝트에 설치된 Unity Pipeline `0.8.0-exp.1`로 실행 중인 Unity `6000.6.4f1`에 연결했다. 원본 Squapple 프로젝트에서 검증했으며 에디터를 닫거나 별도 배치 에디터를 시작하지 않았다.
+- 실제 Unity 컴파일에서 `GameSessionTests`의 R3 참조 누락을 발견해 테스트 어셈블리에 `R3.dll`과 `nunit.framework.dll`을 명시했다.
+- `recompile` → `recompile_status`: `completed`, `failed: false`, 오류 0개.
+- `run_tests --mode editor --filter Squapple.Core.Tests --filter_type assembly --async_tests true` → `test_status`: `completed`, 전체 59개·통과 59개·실패 0개·건너뜀 0개, 실행 시간 0.71초.
+- 모든 명령은 `--project-path`로 Squapple을 지정했다. 로컬 결과는 `.utmp/unity-pipeline-validation/recompile-status.json`과 `.utmp/unity-pipeline-validation/test-results.json`에 보관한다.
 
 **완료 기준:** 선택 요청 하나로 판정·상태 확정·구독자 알림까지 연결되며 구독 순서가 게임 결과를 바꾸지 않는다. 구독한 상태를 실제 모바일 화면에 표시하는 작업은 4단계에서 수행한다.
 
