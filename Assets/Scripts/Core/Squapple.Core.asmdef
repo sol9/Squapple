@@ -1,0 +1,5 @@
+{
+    "name": "Squapple.Core",
+    "rootNamespace": "Squapple.Core",
+    "noEngineReferences": true
+}

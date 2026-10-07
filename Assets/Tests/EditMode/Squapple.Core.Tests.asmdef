@@ -1,0 +1,8 @@
+{
+    "name": "Squapple.Core.Tests",
+    "rootNamespace": "Squapple.Core.Tests",
+    "references": ["Squapple.Core"],
+    "includePlatforms": ["Editor"],
+    "optionalUnityReferences": ["TestAssemblies"],
+    "noEngineReferences": true
+}
