@@ -1,0 +1,8 @@
+{
+    "name": "Squapple.Gameplay",
+    "rootNamespace": "Squapple.Gameplay",
+    "references": ["Squapple.Core"],
+    "overrideReferences": true,
+    "precompiledReferences": ["R3.dll"],
+    "noEngineReferences": true
+}
