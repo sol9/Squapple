@@ -7,6 +7,13 @@
       "dependencies": {},
       "hash": "2e993ff18f28c931602a07292df0b0804eebef99"
     },
+    "com.github-glitchenzo.nugetforunity": {
+      "version": "https://github.com/GlitchEnzo/NuGetForUnity.git?path=/src/NuGetForUnity#v4.5.0",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "a7c6b49a0141a5bff9b1983e38137522ef61977d"
+    },
     "com.unity.2d.animation": {
       "version": "16.0.1",
       "depth": 0,
@@ -367,6 +374,12 @@
         "com.unity.modules.jsonserialize": "1.0.0"
       },
       "url": "https://packages.unity.com"
+    },
+    "nuget-packages": {
+      "version": "file:nuget-packages",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
     },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
