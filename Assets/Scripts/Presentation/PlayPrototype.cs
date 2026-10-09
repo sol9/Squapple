@@ -54,6 +54,10 @@ namespace Squapple.Presentation
         private IDisposable _stateSubscription;
         private double _feedbackUntil;
         private bool _restartOnConfirm;
+        private bool _applicationPaused;
+        private bool _hasFocus = true;
+
+        private bool CanInteract => isActiveAndEnabled && !_applicationPaused && _hasFocus;
 
         private void Awake()
         {
@@ -74,7 +78,11 @@ namespace Squapple.Presentation
             homeSettingsButton.onClick.AddListener(OpenSettings);
             pauseSettingsButton.onClick.AddListener(OpenSettings);
             closeSettingsButton.onClick.AddListener(CloseSettings);
-            testFeedbackButton.onClick.AddListener(() => feedbackPlayer.Play(true));
+            testFeedbackButton.onClick.AddListener(() =>
+            {
+                if (CanInteract)
+                    feedbackPlayer.Play(true);
+            });
             confirmQuitButton.onClick.AddListener(() =>
             {
                 if (_restartOnConfirm)
@@ -90,6 +98,8 @@ namespace Squapple.Presentation
 
         private void Update()
         {
+            if (!CanInteract)
+                return;
             _session?.Tick();
             if (feedback.text.Length > 0 && Time.realtimeSinceStartupAsDouble >= _feedbackUntil)
                 feedback.text = "";
@@ -110,6 +120,8 @@ namespace Squapple.Presentation
 
         public void StartRound()
         {
+            if (!CanInteract)
+                return;
             ReleaseSession();
             home.SetActive(false);
             result.SetActive(false);
@@ -139,7 +151,8 @@ namespace Squapple.Presentation
 
         public void ResumeRound()
         {
-            if (_session == null || _session.State.CurrentValue.Phase != GamePhase.Paused)
+            if (!CanInteract || settings.activeSelf || quitConfirmation.activeSelf ||
+                _session == null || _session.State.CurrentValue.Phase != GamePhase.Paused)
                 return;
             pause.SetActive(false);
             quitConfirmation.SetActive(false);
@@ -161,6 +174,8 @@ namespace Squapple.Presentation
 
         public void OpenSettings()
         {
+            if (!CanInteract)
+                return;
             PauseRound();
             settings.SetActive(true);
         }
@@ -196,7 +211,7 @@ namespace Squapple.Presentation
 
         private void Submit(CellRectangle rectangle)
         {
-            if (_session == null)
+            if (!CanInteract || _session == null || _session.State.CurrentValue.Phase != GamePhase.Playing)
                 return;
             var points = _session.TrySelect(rectangle);
             if (points == 0 && _session.State.CurrentValue.Phase == GamePhase.Finished)
@@ -232,14 +247,27 @@ namespace Squapple.Presentation
 
         private void OnApplicationPause(bool paused)
         {
+            _applicationPaused = paused;
             if (paused)
-                PauseRound();
+                Suspend();
         }
 
         private void OnApplicationFocus(bool focused)
         {
+            _hasFocus = focused;
             if (!focused)
-                PauseRound();
+                Suspend();
+        }
+
+        private void OnDisable() => Suspend();
+
+        private void Suspend()
+        {
+            PauseRound();
+            board.CancelSelection();
+            feedbackPlayer.Stop();
+            feedback.text = "";
+            _feedbackUntil = 0;
         }
 
         private void ReleaseSession()

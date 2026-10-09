@@ -1,0 +1,7 @@
+{
+    "name": "Squapple.Presentation.PlayModeTests",
+    "references": ["Squapple.Presentation", "Squapple.Core", "Squapple.Gameplay", "Unity.ugui"],
+    "overrideReferences": true,
+    "precompiledReferences": ["R3.dll", "nunit.framework.dll"],
+    "optionalUnityReferences": ["TestAssemblies"]
+}
