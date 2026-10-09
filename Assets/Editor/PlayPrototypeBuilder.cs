@@ -75,6 +75,7 @@ public static class PlayPrototypeBuilder
         Assign(serialized, "homeButton", homeButton);
         serialized.ApplyModifiedPropertiesWithoutUndo();
         AddSettingsAndFeedback(root, font);
+        AddRecordsAndRetry(root, font);
         play.SetActive(false);
         pause.SetActive(false);
         result.SetActive(false);
@@ -165,6 +166,48 @@ public static class PlayPrototypeBuilder
         Assign(serialized, "vibrationToggle", vibration);
         Assign(serialized, "restartButton", restart);
         Assign(serialized, "quitConfirmationText", message);
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    [MenuItem("Tools/Squapple/Add Records and Retry")]
+    public static void UpgradeRecords()
+    {
+        var root = PrefabUtility.LoadPrefabContents(PrefabPath);
+        try
+        {
+            if (root.transform.Find("SafeArea/Home/BestScore") != null)
+                return;
+            var font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Fonts/IBMPlexSansKR-Regular.ttf");
+            AddRecordsAndRetry(root, font);
+            PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+    }
+
+    private static void AddRecordsAndRetry(GameObject root, Font font)
+    {
+        var safe = root.transform.Find("SafeArea");
+        var home = safe.Find("Home");
+        var result = safe.Find("Result");
+        var best = Label("BestScore", home, "최고 기록 0점 · 이 기기에 저장", font, 17,
+            new Vector2(0.5f, 0.465f), new Vector2(350, 40));
+        Place((RectTransform)home.Find("Start"), new Vector2(0.5f, 0.37f), new Vector2(280, 56), Vector2.zero);
+        var lastRound = Button("LastRound", home, "지난 판 연습", font, new Vector2(0.5f, 0.275f));
+        Place((RectTransform)home.Find("Settings"), new Vector2(0.5f, 0.18f), new Vector2(280, 56), Vector2.zero);
+        var resultText = result.Find("ResultText").GetComponent<Text>();
+        resultText.fontSize = 20;
+        Place((RectTransform)resultText.transform, new Vector2(0.5f, 0.65f), new Vector2(350, 200), Vector2.zero);
+        Place((RectTransform)result.Find("NewGame"), new Vector2(0.5f, 0.40f), new Vector2(280, 56), Vector2.zero);
+        var retry = Button("Retry", result, "같은 판 연습", font, new Vector2(0.5f, 0.28f));
+        Place((RectTransform)result.Find("Home"), new Vector2(0.5f, 0.16f), new Vector2(280, 56), Vector2.zero);
+
+        var serialized = new SerializedObject(root.GetComponent<PlayPrototype>());
+        Assign(serialized, "homeBest", best);
+        Assign(serialized, "lastRoundButton", lastRound);
+        Assign(serialized, "retryButton", retry);
         serialized.ApplyModifiedPropertiesWithoutUndo();
     }
 

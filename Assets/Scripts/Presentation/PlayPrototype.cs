@@ -31,6 +31,7 @@ namespace Squapple.Presentation
         [SerializeField] private Text feedback;
         [SerializeField] private Text resultText;
         [SerializeField] private Text pauseText;
+        [SerializeField] private Text homeBest;
         [Header("Actions")]
         [SerializeField] private Button startButton;
         [SerializeField] private Button pauseButton;
@@ -38,6 +39,8 @@ namespace Squapple.Presentation
         [SerializeField] private Button quitButton;
         [SerializeField] private Button newGameButton;
         [SerializeField] private Button homeButton;
+        [SerializeField] private Button retryButton;
+        [SerializeField] private Button lastRoundButton;
         [SerializeField] private Button homeSettingsButton;
         [SerializeField] private Button pauseSettingsButton;
         [SerializeField] private Button closeSettingsButton;
@@ -56,12 +59,19 @@ namespace Squapple.Presentation
         private bool _restartOnConfirm;
         private bool _applicationPaused;
         private bool _hasFocus = true;
+        private LocalProgress _progress;
+        private int[] _initialCells;
+        private bool _practice;
+        private bool _resultRecorded;
+        private GameRules _boardRules;
 
         private bool CanInteract => isActiveAndEnabled && !_applicationPaused && _hasFocus;
 
         private void Awake()
         {
             _rules = new GameRules(columns, rows, durationSeconds);
+            _boardRules = _rules;
+            _progress = new LocalProgress();
             feedbackPlayer.Initialize();
             soundToggle.SetIsOnWithoutNotify(feedbackPlayer.SoundEnabled);
             vibrationToggle.SetIsOnWithoutNotify(feedbackPlayer.VibrationEnabled);
@@ -75,6 +85,8 @@ namespace Squapple.Presentation
             restartButton.onClick.AddListener(() => ConfirmRoundEnd(true));
             newGameButton.onClick.AddListener(StartRound);
             homeButton.onClick.AddListener(ShowHome);
+            retryButton.onClick.AddListener(RetryRound);
+            lastRoundButton.onClick.AddListener(RetryRound);
             homeSettingsButton.onClick.AddListener(OpenSettings);
             pauseSettingsButton.onClick.AddListener(OpenSettings);
             closeSettingsButton.onClick.AddListener(CloseSettings);
@@ -122,7 +134,28 @@ namespace Squapple.Presentation
         {
             if (!CanInteract)
                 return;
+            BeginRound(_rules, GameBoard.Generate(_rules, UnityEngine.Random.Range(0, int.MaxValue)).CopyCells(), false);
+        }
+
+        public void RetryRound()
+        {
+            if (!CanInteract || _progress.LastRound == null)
+                return;
+            var saved = _progress.LastRound;
+            BeginRound(saved.CreateRules(), saved.initialCells, true);
+        }
+
+        private void BeginRound(GameRules rules, int[] cells, bool practice)
+        {
             ReleaseSession();
+            _practice = practice;
+            _resultRecorded = false;
+            _initialCells = (int[])cells.Clone();
+            if (_boardRules.Width != rules.Width || _boardRules.Height != rules.Height)
+            {
+                board.Initialize(rules, font);
+                _boardRules = rules;
+            }
             home.SetActive(false);
             result.SetActive(false);
             pause.SetActive(false);
@@ -131,9 +164,8 @@ namespace Squapple.Presentation
             play.SetActive(true);
             board.gameObject.SetActive(true);
             feedback.text = "";
-            selectionSum.text = "선택 합: —";
-            var cells = GameBoard.Generate(_rules, UnityEngine.Random.Range(0, int.MaxValue)).CopyCells();
-            _session = new GameSession(_rules, cells, () => Time.realtimeSinceStartupAsDouble);
+            selectionSum.text = SelectionLabel("—");
+            _session = new GameSession(rules, cells, () => Time.realtimeSinceStartupAsDouble);
             _stateSubscription = _session.State.Subscribe(Render);
             _session.Start();
         }
@@ -170,6 +202,8 @@ namespace Squapple.Presentation
             settings.SetActive(false);
             quitConfirmation.SetActive(false);
             board.gameObject.SetActive(true);
+            homeBest.text = $"최고 기록 {_progress.GetBest(_rules)}점 · 이 기기에 저장";
+            lastRoundButton.interactable = _progress.LastRound != null;
         }
 
         public void OpenSettings()
@@ -201,13 +235,15 @@ namespace Squapple.Presentation
         {
             if (!rectangle.HasValue || _session == null)
             {
-                selectionSum.text = "선택 합: —";
+                selectionSum.text = SelectionLabel("—");
                 return;
             }
             var summary = _session.InspectSelection(rectangle.Value);
-            selectionSum.text = $"선택 합: {summary.Sum}";
+            selectionSum.text = SelectionLabel(summary.Sum.ToString());
             board.SetSelectionValid(summary.CanRemove);
         }
+
+        private string SelectionLabel(string sum) => $"{(_practice ? "연습 · " : "")}선택 합: {sum}";
 
         private void Submit(CellRectangle rectangle)
         {
@@ -233,6 +269,11 @@ namespace Squapple.Presentation
             board.Show(state.Cells, state.Phase == GamePhase.Playing);
             if (state.Phase != GamePhase.Finished)
                 return;
+            if (!_resultRecorded)
+            {
+                _progress.RecordFinished(state, _initialCells, _practice);
+                _resultRecorded = true;
+            }
             pause.SetActive(false);
             quitConfirmation.SetActive(false);
             result.SetActive(true);
@@ -242,7 +283,12 @@ namespace Squapple.Presentation
                 GameEndReason.NoMoves => "더 지울 수 있는 사각형이 없어요",
                 _ => "시간 종료"
             };
-            resultText.text = $"{reason}\n\n이번 점수 {state.Score}점";
+            var best = _progress.GetBest(state.Rules);
+            resultText.text = _practice ? $"{reason}\n연습 점수 {state.Score}점\n일반 최고 기록 {best}점\n연습은 최고 기록에 반영하지 않아요." :
+                $"{reason}\n이번 점수 {state.Score}점\n최고 기록 {best}점";
+            if (!_progress.CanSave)
+                resultText.text += "\n이 버전에서는 기록을 저장할 수 없어요.";
+            retryButton.interactable = _progress.LastRound != null;
         }
 
         private void OnApplicationPause(bool paused)

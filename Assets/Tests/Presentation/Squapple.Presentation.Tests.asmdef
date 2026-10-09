@@ -1,6 +1,8 @@
 {
     "name": "Squapple.Presentation.Tests",
-    "references": ["Squapple.Presentation", "Squapple.Core", "Unity.ugui"],
+    "references": ["Squapple.Presentation", "Squapple.Core", "Squapple.Gameplay", "Unity.ugui"],
+    "overrideReferences": true,
+    "precompiledReferences": ["R3.dll", "nunit.framework.dll"],
     "includePlatforms": ["Editor"],
     "optionalUnityReferences": ["TestAssemblies"]
 }

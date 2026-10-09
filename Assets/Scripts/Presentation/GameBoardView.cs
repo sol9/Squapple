@@ -33,6 +33,8 @@ namespace Squapple.Presentation
         {
             CancelSelection();
             _rules = rules;
+            _cells = null;
+            _interactable = false;
             _rect = (RectTransform)transform;
             foreach (Transform child in transform)
                 Destroy(child.gameObject);
