@@ -74,6 +74,7 @@ public static class PlayPrototypeBuilder
         Assign(serialized, "newGameButton", newGame);
         Assign(serialized, "homeButton", homeButton);
         serialized.ApplyModifiedPropertiesWithoutUndo();
+        AddSettingsAndFeedback(root, font);
         play.SetActive(false);
         pause.SetActive(false);
         result.SetActive(false);
@@ -89,6 +90,102 @@ public static class PlayPrototypeBuilder
         }
         EditorSceneManager.MarkSceneDirty(root.scene);
         Selection.activeGameObject = root;
+    }
+
+    [MenuItem("Tools/Squapple/Add Settings and Feedback")]
+    public static void Upgrade()
+    {
+        var root = PrefabUtility.LoadPrefabContents(PrefabPath);
+        try
+        {
+            if (root.transform.Find("SafeArea/Settings") != null)
+                return;
+            var font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Fonts/IBMPlexSansKR-Regular.ttf");
+            AddSettingsAndFeedback(root, font);
+            PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+    }
+
+    private static void AddSettingsAndFeedback(GameObject root, Font font)
+    {
+        var safe = root.transform.Find("SafeArea");
+        var home = safe.Find("Home");
+        var pause = safe.Find("PauseScreen");
+        home.Find("Rules").GetComponent<Text>().text =
+            "합이 10이 되도록 사각형으로 묶으세요.\n예: 3 + 7 = 10 → 사과 2개, 2점\n사과 한 개당 1점 · 제한 시간 120초";
+        pause.Find("Quit/Label").GetComponent<Text>().text = "홈으로";
+        var homeSettings = Button("Settings", home, "설정", font, new Vector2(0.5f, 0.26f));
+        var pauseSettings = Button("Settings", pause, "설정", font, new Vector2(0.5f, 0.22f));
+        var restart = Button("Restart", pause, "새 판", font, new Vector2(0.5f, 0.33f));
+        var quit = (RectTransform)pause.Find("Quit");
+        quit.anchorMin = quit.anchorMax = new Vector2(0.5f, 0.11f);
+
+        var settings = Modal("Settings", safe);
+        Label("Title", settings.transform, "설정", font, 28, new Vector2(0.5f, 0.78f), new Vector2(320, 60));
+        var sound = Toggle("Sound", settings.transform, "소리", font, new Vector2(0.5f, 0.62f));
+        var vibration = Toggle("Vibration", settings.transform, "진동", font, new Vector2(0.5f, 0.51f));
+        Label("Hint", settings.transform, "진동은 제거 성공 시 사용해요.\n기기에 따라 진동 느낌이 달라요.", font, 15,
+            new Vector2(0.5f, 0.415f), new Vector2(330, 64));
+        var test = Button("TestFeedback", settings.transform, "효과 확인", font, new Vector2(0.5f, 0.30f));
+        var close = Button("Close", settings.transform, "돌아가기", font, new Vector2(0.5f, 0.18f));
+        settings.SetActive(false);
+
+        var confirmation = Modal("QuitConfirmation", safe);
+        var message = Label("Message", confirmation.transform, "이번 판을 그만할까요?\n홈으로 가면 이번 점수는 남지 않아요.", font, 19,
+            new Vector2(0.5f, 0.62f), new Vector2(350, 130));
+        var cancel = Button("Cancel", confirmation.transform, "취소", font, new Vector2(0.5f, 0.43f));
+        var leave = Button("Leave", confirmation.transform, "그만하고 홈으로", font, new Vector2(0.5f, 0.31f));
+        confirmation.SetActive(false);
+
+        var source = root.AddComponent<AudioSource>();
+        source.playOnAwake = false;
+        source.spatialBlend = 0;
+        source.volume = 0.45f;
+        var feedback = root.AddComponent<PlayerFeedback>();
+        var audio = new SerializedObject(feedback);
+        Assign(audio, "successSound", AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SelectionSuccess.wav"));
+        Assign(audio, "errorSound", AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/SelectionError.wav"));
+        audio.ApplyModifiedPropertiesWithoutUndo();
+
+        var serialized = new SerializedObject(root.GetComponent<PlayPrototype>());
+        Assign(serialized, "settings", settings);
+        Assign(serialized, "quitConfirmation", confirmation);
+        Assign(serialized, "feedbackPlayer", feedback);
+        Assign(serialized, "homeSettingsButton", homeSettings);
+        Assign(serialized, "pauseSettingsButton", pauseSettings);
+        Assign(serialized, "closeSettingsButton", close);
+        Assign(serialized, "testFeedbackButton", test);
+        Assign(serialized, "confirmQuitButton", leave);
+        Assign(serialized, "cancelQuitButton", cancel);
+        Assign(serialized, "soundToggle", sound);
+        Assign(serialized, "vibrationToggle", vibration);
+        Assign(serialized, "restartButton", restart);
+        Assign(serialized, "quitConfirmationText", message);
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static Toggle Toggle(string name, Transform parent, string value, Font font, Vector2 anchor)
+    {
+        var node = Node(name, parent);
+        Place((RectTransform)node.transform, anchor, new Vector2(280, 52), Vector2.zero);
+        node.AddComponent<Image>().color = Color.clear;
+        var box = Node("Box", node.transform);
+        Place((RectTransform)box.transform, new Vector2(0.5f, 0.5f), new Vector2(30, 30), new Vector2(-120, 0));
+        var background = box.AddComponent<Image>();
+        background.color = new Color(0.78f, 0.84f, 0.92f);
+        var check = Node("Check", box.transform);
+        Place((RectTransform)check.transform, new Vector2(0.5f, 0.5f), new Vector2(18, 18), Vector2.zero);
+        var mark = check.AddComponent<Image>();
+        mark.color = new Color(0.15f, 0.35f, 0.75f);
+        var toggle = node.AddComponent<Toggle>();
+        toggle.targetGraphic = background;
+        toggle.graphic = mark;
+        Label("Label", node.transform, value, font, 20, new Vector2(0.5f, 0.5f), new Vector2(230, 52), new Vector2(18, 0));
+        return toggle;
     }
 
     private static void Assign(SerializedObject target, string field, Object value) =>
@@ -111,7 +208,7 @@ public static class PlayPrototypeBuilder
     private static GameObject Modal(string name, Transform parent)
     {
         var panel = Node(name, parent);
-        panel.AddComponent<Image>().color = new Color(0.97f, 0.97f, 0.97f, 0.98f);
+        panel.AddComponent<Image>().color = new Color(0.97f, 0.97f, 0.97f);
         return panel;
     }
 

@@ -25,7 +25,9 @@ namespace Squapple.Presentation
         private CellRectangle _selected;
         private bool _interactable;
         private Rect _board;
+        private double[] _flashUntil;
         private static readonly Color TileColor = new(0.86f, 0.89f, 0.92f);
+        private static readonly Color EmptyColor = new(0.86f, 0.89f, 0.92f, 0.18f);
 
         public void Initialize(GameRules rules, Font font)
         {
@@ -36,6 +38,7 @@ namespace Squapple.Presentation
                 Destroy(child.gameObject);
             _numbers = new Text[rules.CellCount];
             _tiles = new Image[rules.CellCount];
+            _flashUntil = new double[rules.CellCount];
             for (var i = 0; i < rules.CellCount; i++)
             {
                 var tile = new GameObject($"Cell {i}", typeof(RectTransform), typeof(Image));
@@ -69,14 +72,44 @@ namespace Squapple.Presentation
         {
             _interactable = interactable;
             if (!interactable)
+            {
                 CancelSelection();
+                ClearFlashes();
+            }
             if (ReferenceEquals(_cells, cells))
                 return;
-            _cells = cells;
             for (var i = 0; i < cells.Count; i++)
             {
+                if (interactable && _cells != null && _cells[i] != 0 && cells[i] == 0)
+                    _flashUntil[i] = Time.realtimeSinceStartupAsDouble + 0.15;
                 _numbers[i].text = cells[i] == 0 ? "" : cells[i].ToString();
-                _tiles[i].color = cells[i] == 0 ? new Color(0.86f, 0.89f, 0.92f, 0.18f) : TileColor;
+                _tiles[i].color = _flashUntil[i] > 0 ? new Color(0.15f, 0.5f, 0.3f, 0.4f) :
+                    cells[i] == 0 ? EmptyColor : TileColor;
+            }
+            _cells = cells;
+        }
+
+        private void Update()
+        {
+            if (_flashUntil == null)
+                return;
+            for (var i = 0; i < _flashUntil.Length; i++)
+            {
+                if (_flashUntil[i] == 0 || Time.realtimeSinceStartupAsDouble < _flashUntil[i])
+                    continue;
+                _flashUntil[i] = 0;
+                _tiles[i].color = _cells[i] == 0 ? EmptyColor : TileColor;
+            }
+        }
+
+        private void ClearFlashes()
+        {
+            if (_flashUntil == null)
+                return;
+            for (var i = 0; i < _flashUntil.Length; i++)
+            {
+                _flashUntil[i] = 0;
+                _tiles[i].color = _cells != null && _cells[i] == 0 ? EmptyColor : TileColor;
             }
         }
 
@@ -126,7 +159,11 @@ namespace Squapple.Presentation
         }
 
         public void OnCancel(BaseEventData eventData) => CancelSelection();
-        private void OnDisable() => CancelSelection();
+        private void OnDisable()
+        {
+            CancelSelection();
+            ClearFlashes();
+        }
         private void OnRectTransformDimensionsChange() => Layout();
 
         public void CancelSelection()

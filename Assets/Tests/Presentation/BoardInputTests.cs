@@ -126,5 +126,21 @@ namespace Squapple.Presentation.Tests
             _view.OnPointerUp(Pointer(1, -25, 50));
             Assert.That(_submissions, Is.Zero);
         }
+
+        [Test]
+        public void RemovalFeedbackDoesNotBlockNextDragAndIsClearedOnPause()
+        {
+            var cells = GameBoard.Generate(new GameRules(), 1).CopyCells();
+            cells[0] = 0;
+            _view.Show(cells, true);
+            var tile = _root.transform.Find("Cell 0").GetComponent<Image>();
+            Assert.That(tile.color.g, Is.GreaterThan(tile.color.r));
+            _view.OnPointerDown(Pointer(1, -25, 60));
+            _view.OnPointerUp(Pointer(1, -15, 60));
+            Assert.That(_submissions, Is.EqualTo(1));
+            _view.Show(cells, false);
+            Assert.That(tile.color.a, Is.EqualTo(0.18f).Within(0.001));
+            Assert.That(_root.transform.Find("Cell 0/Number").GetComponent<Text>().text, Is.Empty);
+        }
     }
 }
