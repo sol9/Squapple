@@ -1,0 +1,7 @@
+{
+    "name": "Squapple.Presentation",
+    "rootNamespace": "Squapple.Presentation",
+    "references": ["Squapple.Core", "Squapple.Gameplay", "Unity.ugui", "Unity.InputSystem"],
+    "overrideReferences": true,
+    "precompiledReferences": ["R3.dll"]
+}
