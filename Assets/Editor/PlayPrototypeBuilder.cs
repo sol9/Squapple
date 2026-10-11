@@ -76,6 +76,7 @@ public static class PlayPrototypeBuilder
         serialized.ApplyModifiedPropertiesWithoutUndo();
         AddSettingsAndFeedback(root, font);
         AddRecordsAndRetry(root, font);
+        AddAds(root, font);
         play.SetActive(false);
         pause.SetActive(false);
         result.SetActive(false);
@@ -208,6 +209,42 @@ public static class PlayPrototypeBuilder
         Assign(serialized, "homeBest", best);
         Assign(serialized, "lastRoundButton", lastRound);
         Assign(serialized, "retryButton", retry);
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    [MenuItem("Tools/Squapple/Add Ads and Privacy")]
+    public static void UpgradeAds()
+    {
+        var root = PrefabUtility.LoadPrefabContents(PrefabPath);
+        try
+        {
+            if (root.transform.Find("SafeArea/Result/AdNotice") != null)
+                return;
+            AddAds(root, AssetDatabase.LoadAssetAtPath<Font>("Assets/Fonts/IBMPlexSansKR-Regular.ttf"));
+            PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+    }
+
+    private static void AddAds(GameObject root, Font font)
+    {
+        var safe = root.transform.Find("SafeArea");
+        var notice = Label("AdNotice", safe.Find("Result"), "", font, 14,
+            new Vector2(0.5f, 0.49f), new Vector2(350, 42));
+        var settings = safe.Find("Settings");
+        var privacy = Button("PrivacyOptions", settings, "광고 개인정보 설정", font, new Vector2(0.5f, 0.20f));
+        var status = Label("PrivacyStatus", settings, "", font, 14,
+            new Vector2(0.5f, 0.89f), new Vector2(350, 44));
+        Place((RectTransform)settings.Find("Close"), new Vector2(0.5f, 0.09f), new Vector2(280, 56), Vector2.zero);
+        privacy.gameObject.SetActive(false);
+        var serialized = new SerializedObject(root.GetComponent<PlayPrototype>());
+        Assign(serialized, "adNotice", notice);
+        Assign(serialized, "privacyOptionsButton", privacy);
+        Assign(serialized, "privacyStatus", status);
+        serialized.FindProperty("useTestAds").boolValue = true;
         serialized.ApplyModifiedPropertiesWithoutUndo();
     }
 

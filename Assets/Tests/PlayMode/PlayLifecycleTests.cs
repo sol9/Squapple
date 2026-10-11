@@ -23,6 +23,8 @@ namespace Squapple.Presentation.Tests
         private int _soundSetting;
         private bool _hadProgress;
         private string _progressJson;
+        private bool _hadAds;
+        private string _adsJson;
 
         private GameSession Session => Field<GameSession>("_session");
         private T Field<T>(string name) => (T)typeof(PlayPrototype)
@@ -41,6 +43,9 @@ namespace Squapple.Presentation.Tests
             _hadProgress = PlayerPrefs.HasKey(LocalProgress.StorageKey);
             _progressJson = PlayerPrefs.GetString(LocalProgress.StorageKey);
             PlayerPrefs.DeleteKey(LocalProgress.StorageKey);
+            _hadAds = PlayerPrefs.HasKey(AdFrequency.StorageKey);
+            _adsJson = PlayerPrefs.GetString(AdFrequency.StorageKey);
+            PlayerPrefs.DeleteKey(AdFrequency.StorageKey);
             _events = new GameObject("Lifecycle test events", typeof(EventSystem));
             CreateScreen();
             yield return null;
@@ -68,6 +73,10 @@ namespace Squapple.Presentation.Tests
                 PlayerPrefs.SetString(LocalProgress.StorageKey, _progressJson);
             else
                 PlayerPrefs.DeleteKey(LocalProgress.StorageKey);
+            if (_hadAds)
+                PlayerPrefs.SetString(AdFrequency.StorageKey, _adsJson);
+            else
+                PlayerPrefs.DeleteKey(AdFrequency.StorageKey);
             PlayerPrefs.Save();
             Random.state = _randomState;
             yield return null;

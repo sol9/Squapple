@@ -110,3 +110,7 @@ InitTestScene*.unity*
 
 
 Packages/nuget-packages/InstalledPackages
+
+# Generated Google dependency resolver cache and local editor preferences
+/ProjectSettings/AndroidResolverDependencies.xml
+/ProjectSettings/GvhProjectSettings.xml

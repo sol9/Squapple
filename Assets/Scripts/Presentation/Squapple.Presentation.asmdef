@@ -3,5 +3,5 @@
     "rootNamespace": "Squapple.Presentation",
     "references": ["Squapple.Core", "Squapple.Gameplay", "Unity.ugui", "Unity.InputSystem"],
     "overrideReferences": true,
-    "precompiledReferences": ["R3.dll"]
+    "precompiledReferences": ["R3.dll", "GoogleMobileAds.dll", "GoogleMobileAds.Core.dll", "GoogleMobileAds.Common.dll", "GoogleMobileAds.Ump.dll"]
 }

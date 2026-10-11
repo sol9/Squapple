@@ -51,6 +51,12 @@ namespace Squapple.Presentation
         [SerializeField] private Text quitConfirmationText;
         [SerializeField] private Toggle soundToggle;
         [SerializeField] private Toggle vibrationToggle;
+        [Header("Ads")]
+        [SerializeField] private bool useTestAds = true;
+        [SerializeField] private bool initializeAdsInEditor;
+        [SerializeField] private Text adNotice;
+        [SerializeField] private Button privacyOptionsButton;
+        [SerializeField] private Text privacyStatus;
 
         private GameRules _rules;
         private GameSession _session;
@@ -64,14 +70,23 @@ namespace Squapple.Presentation
         private bool _practice;
         private bool _resultRecorded;
         private GameRules _boardRules;
+        private IInterstitialAds _ads;
+        private AdFrequency _adFrequency;
+        private bool _adOffered;
+        private bool _adTransition;
+        private bool _pendingNextRound;
+        private int _transitionVersion;
 
-        private bool CanInteract => isActiveAndEnabled && !_applicationPaused && _hasFocus;
+        private bool CanInteract => isActiveAndEnabled && !_applicationPaused && _hasFocus &&
+            !_adTransition && !(_ads?.IsBusy ?? false);
 
         private void Awake()
         {
             _rules = new GameRules(columns, rows, durationSeconds);
             _boardRules = _rules;
             _progress = new LocalProgress();
+            _adFrequency = new AdFrequency();
+            _ads = new AdMobInterstitial(useTestAds);
             feedbackPlayer.Initialize();
             soundToggle.SetIsOnWithoutNotify(feedbackPlayer.SoundEnabled);
             vibrationToggle.SetIsOnWithoutNotify(feedbackPlayer.VibrationEnabled);
@@ -83,7 +98,7 @@ namespace Squapple.Presentation
             resumeButton.onClick.AddListener(ResumeRound);
             quitButton.onClick.AddListener(() => ConfirmRoundEnd(false));
             restartButton.onClick.AddListener(() => ConfirmRoundEnd(true));
-            newGameButton.onClick.AddListener(StartRound);
+            newGameButton.onClick.AddListener(StartNextRound);
             homeButton.onClick.AddListener(ShowHome);
             retryButton.onClick.AddListener(RetryRound);
             lastRoundButton.onClick.AddListener(RetryRound);
@@ -105,13 +120,26 @@ namespace Squapple.Presentation
             cancelQuitButton.onClick.AddListener(() => quitConfirmation.SetActive(false));
             soundToggle.onValueChanged.AddListener(feedbackPlayer.SetSound);
             vibrationToggle.onValueChanged.AddListener(feedbackPlayer.SetVibration);
+            privacyOptionsButton.onClick.AddListener(ShowPrivacyOptions);
             ShowHome();
+        }
+
+        private void Start()
+        {
+            if (!Application.isEditor || initializeAdsInEditor)
+                _ads.Initialize(Suspend);
         }
 
         private void Update()
         {
+            privacyOptionsButton.gameObject.SetActive(_ads.PrivacyOptionsRequired);
             if (!CanInteract)
                 return;
+            if (_pendingNextRound)
+            {
+                _pendingNextRound = false;
+                StartRound();
+            }
             _session?.Tick();
             if (feedback.text.Length > 0 && Time.realtimeSinceStartupAsDouble >= _feedbackUntil)
                 feedback.text = "";
@@ -137,6 +165,32 @@ namespace Squapple.Presentation
             BeginRound(_rules, GameBoard.Generate(_rules, UnityEngine.Random.Range(0, int.MaxValue)).CopyCells(), false);
         }
 
+        private void StartNextRound()
+        {
+            if (!CanInteract || !result.activeSelf)
+                return;
+            var showAd = _adOffered && _adFrequency.IsEligible;
+            _adOffered = false;
+            if (!_practice && _adFrequency.IsEligible)
+                _adFrequency.ResetInterval();
+            if (showAd)
+            {
+                _adTransition = true;
+                feedbackPlayer.Stop();
+                var version = ++_transitionVersion;
+                if (_ads.TryShow(_adFrequency.RecordShown, () =>
+                {
+                    if (this == null || version != _transitionVersion)
+                        return;
+                    _adTransition = false;
+                    _pendingNextRound = true;
+                }))
+                    return;
+                _adTransition = false;
+            }
+            StartRound();
+        }
+
         public void RetryRound()
         {
             if (!CanInteract || _progress.LastRound == null)
@@ -147,6 +201,8 @@ namespace Squapple.Presentation
 
         private void BeginRound(GameRules rules, int[] cells, bool practice)
         {
+            CancelAdTransition();
+            _ads.Prepare();
             ReleaseSession();
             _practice = practice;
             _resultRecorded = false;
@@ -194,6 +250,7 @@ namespace Squapple.Presentation
 
         public void ShowHome()
         {
+            CancelAdTransition();
             ReleaseSession();
             home.SetActive(true);
             play.SetActive(false);
@@ -204,6 +261,7 @@ namespace Squapple.Presentation
             board.gameObject.SetActive(true);
             homeBest.text = $"최고 기록 {_progress.GetBest(_rules)}점 · 이 기기에 저장";
             lastRoundButton.interactable = _progress.LastRound != null;
+            _ads.Prepare();
         }
 
         public void OpenSettings()
@@ -211,7 +269,20 @@ namespace Squapple.Presentation
             if (!CanInteract)
                 return;
             PauseRound();
+            privacyStatus.text = "";
             settings.SetActive(true);
+        }
+
+        private void ShowPrivacyOptions()
+        {
+            if (!CanInteract)
+                return;
+            feedbackPlayer.Stop();
+            _ads.ShowPrivacyOptions(success =>
+            {
+                if (this != null)
+                    privacyStatus.text = success ? "" : "설정을 열지 못했어요. 잠시 후 다시 시도해 주세요.";
+            });
         }
 
         public void CloseSettings()
@@ -273,6 +344,13 @@ namespace Squapple.Presentation
             {
                 _progress.RecordFinished(state, _initialCells, _practice);
                 _resultRecorded = true;
+                if (!_practice && state.EndReason != GameEndReason.Stopped)
+                    _adFrequency.RecordRound(state.ElapsedSeconds);
+                // Freeze the offer for this result; a late load must never introduce an ad.
+                _adOffered = !_practice && _adFrequency.IsEligible && _ads.IsReady;
+                adNotice.text = _adOffered ? "다음 판 시작 전에 광고가 표시돼요." : "";
+                newGameButton.GetComponentInChildren<Text>().text = _adOffered ? "광고 후 새 판" : "새 판";
+                _ads.Prepare();
             }
             pause.SetActive(false);
             quitConfirmation.SetActive(false);
@@ -305,7 +383,21 @@ namespace Squapple.Presentation
                 Suspend();
         }
 
-        private void OnDisable() => Suspend();
+        private void OnDisable()
+        {
+            CancelAdTransition();
+            Suspend();
+        }
+
+        private void CancelAdTransition()
+        {
+            _transitionVersion++;
+            _adTransition = false;
+            _pendingNextRound = false;
+            _adOffered = false;
+            adNotice.text = "";
+            newGameButton.GetComponentInChildren<Text>().text = "새 판";
+        }
 
         private void Suspend()
         {
@@ -328,6 +420,8 @@ namespace Squapple.Presentation
 
         private void OnDestroy()
         {
+            CancelAdTransition();
+            _ads?.Dispose();
             ReleaseSession();
             board.SelectionChanged -= Preview;
             board.SelectionSubmitted -= Submit;
