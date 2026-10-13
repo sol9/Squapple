@@ -40,7 +40,7 @@ namespace Squapple.Presentation.Tests
             _random = Random.state;
             _root = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/PlayPrototype.prefab"));
             _ui = _root.GetComponent<PlayPrototype>();
-            typeof(PlayPrototype).GetField("enableAds", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(_ui, true);
+            typeof(PlayPrototype).GetField("_adsEnabled", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(_ui, true);
             Field<IInterstitialAds>("_ads").Dispose();
             _ads = new FakeAds();
             typeof(PlayPrototype).GetField("_ads", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(_ui, _ads);
@@ -91,9 +91,10 @@ namespace Squapple.Presentation.Tests
             yield return null;
             _root = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/PlayPrototype.prefab"));
             _ui = _root.GetComponent<PlayPrototype>();
-            Assert.That(Field<bool>("enableAds"), Is.False);
+            Assert.That(Resources.Load<AdsSettings>("AdsSettings").EnableAds, Is.False);
+            Assert.That(Field<bool>("_adsEnabled"), Is.False);
             // Exercise Start even when the editor SDK preview is explicitly enabled.
-            typeof(PlayPrototype).GetField("initializeAdsInEditor", BindingFlags.Instance | BindingFlags.NonPublic)
+            typeof(PlayPrototype).GetField("_initializeAdsInEditor", BindingFlags.Instance | BindingFlags.NonPublic)
                 .SetValue(_ui, true);
             yield return null;
             _root.SendMessage("OnApplicationFocus", true);
@@ -112,6 +113,40 @@ namespace Squapple.Presentation.Tests
             Next();
             Assert.That(Session.State.CurrentValue.Phase, Is.EqualTo(GamePhase.Playing));
             Assert.That(PlayerPrefs.GetString(AdFrequency.StorageKey), Is.EqualTo(saved));
+        }
+
+        [UnityTest]
+        public IEnumerator EnabledProjectSettingsStartTheSdkForANewController()
+        {
+            var settings = Resources.Load<AdsSettings>("AdsSettings");
+            var enabled = settings.EnableAds;
+            var test = settings.UseTestAds;
+            var preview = settings.InitializeAdsInEditor;
+            void Set(string name, bool value) => typeof(AdsSettings)
+                .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(settings, value);
+            try
+            {
+                Set("enableAds", true);
+                Set("useTestAds", true);
+                Set("initializeAdsInEditor", true);
+                Object.Destroy(_root);
+                yield return null;
+                _root = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/PlayPrototype.prefab"));
+                _ui = _root.GetComponent<PlayPrototype>();
+                var sdk = Field<IInterstitialAds>("_ads");
+                var deadline = Time.realtimeSinceStartupAsDouble + 5;
+                while (!sdk.IsReady && Time.realtimeSinceStartupAsDouble < deadline)
+                    yield return null;
+                Assert.That(sdk.IsReady, Is.True);
+                Set("enableAds", false);
+                Assert.That(Field<bool>("_adsEnabled"), Is.True, "Settings are captured at startup.");
+            }
+            finally
+            {
+                Set("enableAds", enabled);
+                Set("useTestAds", test);
+                Set("initializeAdsInEditor", preview);
+            }
         }
 
         [UnityTest]

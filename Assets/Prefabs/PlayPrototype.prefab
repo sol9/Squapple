@@ -5474,9 +5474,6 @@ MonoBehaviour:
   quitConfirmationText: {fileID: 3514723341118050889}
   soundToggle: {fileID: 2709864288161359362}
   vibrationToggle: {fileID: 5164399060824949996}
-  enableAds: 0
-  useTestAds: 1
-  initializeAdsInEditor: 0
   adNotice: {fileID: 6282152523206150601}
   privacyOptionsButton: {fileID: 8425160193553788901}
   privacyStatus: {fileID: 1009300994735999728}

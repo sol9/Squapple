@@ -52,9 +52,6 @@ namespace Squapple.Presentation
         [SerializeField] private Toggle soundToggle;
         [SerializeField] private Toggle vibrationToggle;
         [Header("Ads")]
-        [SerializeField] private bool enableAds;
-        [SerializeField] private bool useTestAds = true;
-        [SerializeField] private bool initializeAdsInEditor;
         [SerializeField] private Text adNotice;
         [SerializeField] private Button privacyOptionsButton;
         [SerializeField] private Text privacyStatus;
@@ -71,6 +68,8 @@ namespace Squapple.Presentation
         private bool _practice;
         private bool _resultRecorded;
         private GameRules _boardRules;
+        private bool _adsEnabled;
+        private bool _initializeAdsInEditor;
         private IInterstitialAds _ads;
         private AdFrequency _adFrequency;
         private bool _adOffered;
@@ -87,7 +86,10 @@ namespace Squapple.Presentation
             _boardRules = _rules;
             _progress = new LocalProgress();
             _adFrequency = new AdFrequency();
-            _ads = new AdMobInterstitial(useTestAds, enableAds);
+            var adsSettings = Resources.Load<AdsSettings>("AdsSettings");
+            _adsEnabled = adsSettings != null && adsSettings.EnableAds;
+            _initializeAdsInEditor = adsSettings != null && adsSettings.InitializeAdsInEditor;
+            _ads = new AdMobInterstitial(adsSettings == null || adsSettings.UseTestAds, _adsEnabled);
             feedbackPlayer.Initialize();
             soundToggle.SetIsOnWithoutNotify(feedbackPlayer.SoundEnabled);
             vibrationToggle.SetIsOnWithoutNotify(feedbackPlayer.VibrationEnabled);
@@ -127,7 +129,7 @@ namespace Squapple.Presentation
 
         private void Start()
         {
-            if (!Application.isEditor || initializeAdsInEditor)
+            if (!Application.isEditor || _initializeAdsInEditor)
                 _ads.Initialize(Suspend);
         }
 
@@ -170,9 +172,9 @@ namespace Squapple.Presentation
         {
             if (!CanInteract || !result.activeSelf)
                 return;
-            var showAd = enableAds && _adOffered && _adFrequency.IsEligible;
+            var showAd = _adsEnabled && _adOffered && _adFrequency.IsEligible;
             _adOffered = false;
-            if (enableAds && !_practice && _adFrequency.IsEligible)
+            if (_adsEnabled && !_practice && _adFrequency.IsEligible)
                 _adFrequency.ResetInterval();
             if (showAd)
             {
@@ -345,10 +347,10 @@ namespace Squapple.Presentation
             {
                 _progress.RecordFinished(state, _initialCells, _practice);
                 _resultRecorded = true;
-                if (enableAds && !_practice && state.EndReason != GameEndReason.Stopped)
+                if (_adsEnabled && !_practice && state.EndReason != GameEndReason.Stopped)
                     _adFrequency.RecordRound(state.ElapsedSeconds);
                 // Freeze the offer for this result; a late load must never introduce an ad.
-                _adOffered = enableAds && !_practice && _adFrequency.IsEligible && _ads.IsReady;
+                _adOffered = _adsEnabled && !_practice && _adFrequency.IsEligible && _ads.IsReady;
                 adNotice.text = _adOffered ? "다음 판 시작 전에 광고가 표시돼요." : "";
                 newGameButton.GetComponentInChildren<Text>().text = _adOffered ? "광고 후 새 판" : "새 판";
                 _ads.Prepare();
