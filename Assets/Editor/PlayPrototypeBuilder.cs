@@ -244,6 +244,7 @@ public static class PlayPrototypeBuilder
         Assign(serialized, "adNotice", notice);
         Assign(serialized, "privacyOptionsButton", privacy);
         Assign(serialized, "privacyStatus", status);
+        serialized.FindProperty("enableAds").boolValue = false;
         serialized.FindProperty("useTestAds").boolValue = true;
         serialized.ApplyModifiedPropertiesWithoutUndo();
     }

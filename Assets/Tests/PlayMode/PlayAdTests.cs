@@ -40,6 +40,7 @@ namespace Squapple.Presentation.Tests
             _random = Random.state;
             _root = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/PlayPrototype.prefab"));
             _ui = _root.GetComponent<PlayPrototype>();
+            typeof(PlayPrototype).GetField("enableAds", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(_ui, true);
             Field<IInterstitialAds>("_ads").Dispose();
             _ads = new FakeAds();
             typeof(PlayPrototype).GetField("_ads", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(_ui, _ads);
@@ -80,6 +81,38 @@ namespace Squapple.Presentation.Tests
         }
 
         private void Next() => Field<Button>("newGameButton").onClick.Invoke();
+
+        [UnityTest]
+        public IEnumerator DefaultPrefabDoesNotStartAdsOrOfferThemWithASavedEligibleInterval()
+        {
+            EarnBreak();
+            var saved = PlayerPrefs.GetString(AdFrequency.StorageKey);
+            Object.Destroy(_root);
+            yield return null;
+            _root = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/PlayPrototype.prefab"));
+            _ui = _root.GetComponent<PlayPrototype>();
+            Assert.That(Field<bool>("enableAds"), Is.False);
+            // Exercise Start even when the editor SDK preview is explicitly enabled.
+            typeof(PlayPrototype).GetField("initializeAdsInEditor", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(_ui, true);
+            yield return null;
+            _root.SendMessage("OnApplicationFocus", true);
+            _root.SendMessage("OnApplicationPause", false);
+            var sdk = Field<IInterstitialAds>("_ads");
+            Assert.That(typeof(AdMobInterstitial).GetField("_started", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(sdk), Is.False);
+            Assert.That(sdk.IsReady, Is.False);
+            Assert.That(sdk.PrivacyOptionsRequired, Is.False);
+            Complete();
+            Assert.That(Field<Text>("adNotice").text, Is.Empty);
+            Assert.That(Field<Button>("newGameButton").GetComponentInChildren<Text>().text, Is.EqualTo("새 판"));
+            _ui.OpenSettings();
+            Assert.That(Field<Button>("privacyOptionsButton").gameObject.activeSelf, Is.False);
+            _ui.CloseSettings();
+            Next();
+            Assert.That(Session.State.CurrentValue.Phase, Is.EqualTo(GamePhase.Playing));
+            Assert.That(PlayerPrefs.GetString(AdFrequency.StorageKey), Is.EqualTo(saved));
+        }
 
         [UnityTest]
         public IEnumerator EditorSdkCompletesConsentAndLoadsATestAdFromColdStart()

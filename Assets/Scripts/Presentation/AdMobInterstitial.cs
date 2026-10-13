@@ -26,8 +26,10 @@ namespace Squapple.Presentation
         private double _loadedAt;
         private double _retryAfter;
 
-        public AdMobInterstitial(bool useTestAds)
+        public AdMobInterstitial(bool useTestAds, bool enabled = true)
         {
+            if (!enabled)
+                return;
             var test = useTestAds || Application.isEditor || Debug.isDebugBuild;
             if (Application.platform == RuntimePlatform.IPhonePlayer)
                 _adUnitId = test ? IosTestAdUnitId : null; // Production iOS IDs are not configured yet.

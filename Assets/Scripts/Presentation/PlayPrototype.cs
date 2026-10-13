@@ -52,6 +52,7 @@ namespace Squapple.Presentation
         [SerializeField] private Toggle soundToggle;
         [SerializeField] private Toggle vibrationToggle;
         [Header("Ads")]
+        [SerializeField] private bool enableAds;
         [SerializeField] private bool useTestAds = true;
         [SerializeField] private bool initializeAdsInEditor;
         [SerializeField] private Text adNotice;
@@ -86,7 +87,7 @@ namespace Squapple.Presentation
             _boardRules = _rules;
             _progress = new LocalProgress();
             _adFrequency = new AdFrequency();
-            _ads = new AdMobInterstitial(useTestAds);
+            _ads = new AdMobInterstitial(useTestAds, enableAds);
             feedbackPlayer.Initialize();
             soundToggle.SetIsOnWithoutNotify(feedbackPlayer.SoundEnabled);
             vibrationToggle.SetIsOnWithoutNotify(feedbackPlayer.VibrationEnabled);
@@ -169,9 +170,9 @@ namespace Squapple.Presentation
         {
             if (!CanInteract || !result.activeSelf)
                 return;
-            var showAd = _adOffered && _adFrequency.IsEligible;
+            var showAd = enableAds && _adOffered && _adFrequency.IsEligible;
             _adOffered = false;
-            if (!_practice && _adFrequency.IsEligible)
+            if (enableAds && !_practice && _adFrequency.IsEligible)
                 _adFrequency.ResetInterval();
             if (showAd)
             {
@@ -344,10 +345,10 @@ namespace Squapple.Presentation
             {
                 _progress.RecordFinished(state, _initialCells, _practice);
                 _resultRecorded = true;
-                if (!_practice && state.EndReason != GameEndReason.Stopped)
+                if (enableAds && !_practice && state.EndReason != GameEndReason.Stopped)
                     _adFrequency.RecordRound(state.ElapsedSeconds);
                 // Freeze the offer for this result; a late load must never introduce an ad.
-                _adOffered = !_practice && _adFrequency.IsEligible && _ads.IsReady;
+                _adOffered = enableAds && !_practice && _adFrequency.IsEligible && _ads.IsReady;
                 adNotice.text = _adOffered ? "다음 판 시작 전에 광고가 표시돼요." : "";
                 newGameButton.GetComponentInChildren<Text>().text = _adOffered ? "광고 후 새 판" : "새 판";
                 _ads.Prepare();

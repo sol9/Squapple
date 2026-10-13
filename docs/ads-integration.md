@@ -4,6 +4,16 @@
 - 범위: 7단계 전면 광고·동의 처리. IAP는 보류.
 - 운영 방향: [수익화 검토](monetization-strategy.md)
 
+## 현재 출시 방향 (2026-10-13)
+
+첫 출시는 **광고 없음·IAP 없음**으로 진행한다. 광고 연동·ID·검증 기록은 후속 도입을 위해 보관한다. 실제 프리팹과 생성 도구의 `enableAds` 기본값은 false다. 이 상태에서는 앱 코드가 UMP 동의 갱신과 광고 SDK 초기화·요청을 시작하지 않으며 광고 예고·표시·빈도 데이터 변경을 하지 않는다. 광고용 개인정보 선택 버튼도 숨긴다. 과거 광고 노출 조건을 채운 저장 데이터가 있어도 광고를 표시하지 않는다.
+
+패키지와 네이티브 의존성은 프로젝트에 남아 있으므로 이것만으로 모든 SDK의 자동 실행·데이터 수집이 없다고 단정하지 않는다. 출시 후보의 SDK 포함·진단 설정·권한·외부 전송 확인은 남아 있다. 일반 앱 개인정보처리방침은 광고 유무와 별개로 준비한다. [홈페이지·방침 준비 문서](website-and-privacy-handoff.md)
+
+2026-10-13 Unity CLI/Pipeline 컴파일 오류 0개, PlayMode **24/24** 통과. 과거 광고 조건을 채운 저장 데이터가 있는 기본 프리팹에서도 SDK 시작·광고 안내·노출·빈도 데이터 변경 없이 다음 판으로 진행하는 경로를 추가 검증했다. 기존 광고 활성 상태의 테스트도 유지했다. 이 변경 후 APK는 아직 다시 만들지 않았다. 기존 2026-10-11 광고 테스트 APK를 광고 없는 빌드로 취급하지 않는다.
+
+아래는 광고를 다시 켤 때 적용할 연동 설정과 이전 검증 기록이다. 운영 광고 재도입 시 `enableAds`, 테스트 광고 여부, 네이티브 의존성, UMP 메시지·방침·스토어 데이터 표시를 함께 검토한다.
+
 ## 설정
 
 | 항목 | 값 |
@@ -24,7 +34,7 @@ https://github.com/googleads/googleads-mobile-unity.git?path=packages/com.google
 https://github.com/googlesamples/unity-jar-resolver.git?path=upm#v1.2.187
 ```
 
-`PlayPrototype`의 `useTestAds` 기본값은 true다. 이 값이 true이거나 Unity Editor·Development Build이면 Google의 플랫폼별 테스트 광고 단위만 요청한다. Android 운영 광고를 활성화하려면 실제 계정·앱·동의 설정과 실기기 검증을 마친 뒤 이 값을 false로 바꾸고 비개발 빌드를 만든다. iOS는 운영용 앱 ID와 광고 단위 ID가 모두 필요하다.
+`PlayPrototype`의 `useTestAds` 기본값은 true다. 광고를 켠 상태에서 이 값이 true이거나 Unity Editor·Development Build이면 Google의 플랫폼별 테스트 광고 단위만 요청한다. Android 운영 광고를 활성화하려면 실제 계정·앱·동의 설정과 실기기 검증을 마친 뒤 `enableAds=true`, `useTestAds=false`로 바꾸고 비개발 빌드를 만든다. iOS는 운영용 앱 ID와 광고 단위 ID가 모두 필요하다.
 
 에디터에서는 기본적으로 광고 SDK를 자동 초기화하지 않는다. 자동 테스트에는 통제 가능한 광고 대역을 사용한다. SDK의 에디터 모형 광고를 확인할 때만 `initializeAdsInEditor`를 켠다. 에디터 모형은 네이티브 광고 표시나 실제 동의 메시지의 검증을 대신하지 않는다. [테스트 광고](https://developers.google.com/admob/unity/test-ads)
 
