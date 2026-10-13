@@ -77,6 +77,12 @@ mono_crash.*
 *.unitypackage.meta
 *.app
 
+# Android signing keys are kept and backed up outside the repository
+*.[jJ][kK][sS]
+*.[jJ][kK][sS].meta
+*.[kK][eE][yY][sS][tT][oO][rR][eE]
+*.[kK][eE][yY][sS][tT][oO][rR][eE].meta
+
 # Crashlytics generated file
 crashlytics-build.properties
 
