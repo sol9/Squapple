@@ -5,9 +5,9 @@
 
 ## 결론
 
-현재 Android 프로필은 **Release APK**를 만드는 설정이다. IL2CPP·ARM64와 게임 씬 연결은 준비돼 있다. Play 제출에는 대상 SDK 조정, AAB, 업로드용 서명, 양쪽 앱 식별자 확정과 아이콘 준비가 남았다.
+현재 Android 프로필은 **Release APK**를 만드는 설정이다. IL2CPP·ARM64와 게임 씬 연결은 준비돼 있다. 대상 SDK는 설정 화면 오류를 우회해 API 36으로 저장했다. Play 제출에는 실제 산출물 검증, AAB, 업로드용 서명, 양쪽 앱 식별자 확정과 아이콘 준비가 남았다.
 
-2026-10-14 Unity Pipeline으로 열린 에디터를 조회하여 `Development=False`, `BuildType=Release`를 재확인했다. 에디터에 있던 변경을 저장했고, 아래 표는 저장 후 파일과 유효 설정을 기준으로 한다. 식별자나 대상 SDK를 새 권장값으로 변경하거나 빌드를 만들지는 않았다.
+2026-10-14 Unity Pipeline으로 열린 에디터를 조회하여 `Development=False`, `BuildType=Release`를 재확인했다. 에디터에 있던 변경을 저장한 뒤, 후속 조사에서 SDK 메뉴 변환 오류를 확인하고 공식 설정 API로 대상 SDK 36을 적용했다. 식별자를 다시 변경하거나 새 빌드를 만들지는 않았다.
 
 사용자는 Google Play Console에 APK/AAB를 아직 업로드하지 않았다고 확인했다. 현재 값과 권장 조치를 구분하며, **권장값으로의 정리는 아직 미완료**다.
 
@@ -31,7 +31,7 @@
 | iOS 빌드 번호 | `0` | 첫 배포용 빌드는 `1`부터 관리 제안 |
 | 스크립팅 / 아키텍처 | IL2CPP / ARM64 | 유지 |
 | Android 최소 SDK | API 26 | 기존 검증 출발점 유지 |
-| Android 대상 SDK | API 30 | 현 상태는 Play 제출 기준에 미달. API 36으로 명시 고정하고 빌드 검증 필요 |
+| Android 대상 SDK | API 36 | Unity API와 저장 파일에서 36 확인. 메뉴 변환 오류에 유의하고 최종 산출물도 검증 |
 | 코드 제거 | Minimal | 초기 출시는 유지. 용량 때문에 검증 없이 강화하지 않기 |
 | 그래픽 API | Vulkan → OpenGLES3 | 현재 실기기 동작을 기준으로 유지. 다른 기기에서도 확인 |
 | 화면 방향 | Auto Rotation, 정방향·거꾸로 세로 허용 | 세로 전용은 맞음. 정방향만 원하면 Portrait로 고정 |
@@ -43,13 +43,37 @@
 
 현재 식별자는 문법 오류로 판단한 것이 아니다. 도메인 기반의 소문자 식별자를 명시적으로 고정하자는 제안이다. 식별자를 바꾸면 기존 테스트 설치와 별도 앱으로 취급되므로 로컬 기록도 자동으로 이어지지 않는다.
 
-10월 13일에는 Android 식별자가 `com.prolly.works.Squapple`, 대상 SDK가 Auto였으나, 10월 14일 열린 에디터에서 위 변경을 확인하고 저장했다. 이번 커밋은 작업 상태 보관이며 출시 가능한 최종 설정이라는 뜻은 아니다.
+10월 13일에는 Android 식별자가 `com.prolly.works.Squapple`, 대상 SDK가 Auto였다. 10월 14일 커밋 `d912c47`에는 식별자 `works.prolly.Squapple`과 대상 SDK 30이 보관됐다. 이후 사용자가 화면에서 36을 선택했다고 알려 SDK 메뉴 변환 오류를 확인했고, 현재 작업 파일은 36으로 수정돼 있다. 최초 API 30 관측은 실제 저장값이었지만 사용자 선택 의도가 아니었다.
 
 신규 앱과 업데이트는 2026-08-31부터 API 36 이상을 대상으로 해야 한다. 최소 지원 OS와 대상 API는 별개이며 최소 API 26을 유지하면서 대상 API 36을 사용할 수 있다. [Google Play 대상 API 요구사항](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en)
 
 Development 옵션, APK/AAB 전환 및 압축 방식의 의미는 [Unity 6.6 Android 빌드 설정](https://docs.unity3d.com/6000.6/Documentation/Manual/android-build-settings.html)을 기준으로 확인했다.
 
 ## 빌드 경로에서 주의할 점
+
+### Target API 메뉴와 저장값 불일치 — 2026-10-14
+
+현재 설치된 Unity `6000.6.4f1`의 열린 `PlayerSettingsEditorExtension` 객체에서 읽기 전용 리플렉션으로 직접 재현했다.
+
+| 메뉴 문구 | `ConvertAndroidTargetSDKIndexToVersion` 반환값 |
+| --- | --- |
+| Android 12L / API 32 | 26 |
+| Android 15 / API 35 | 29 |
+| Android 16 / API 36 | 30 |
+| Android 17 / API 37 | 31 |
+
+메뉴 목록은 API 32부터 시작하지만 변환 객체의 `k_MinAndroidTargetAPILevel`은 26이었다. 선택 위치를 실제 API로 환산할 때 6이 작아지는 불일치다. `AndroidSdkVersions.AndroidApiLevel36` 열거형 자체의 정숫값은 36이므로 YAML의 30이 API 36을 뜻하는 정상 저장 방식은 아니다. 프로젝트 코드·패키지 C# 검색에서 대상 SDK를 30으로 덮어쓰는 코드는 찾지 못했다.
+
+아래 공식 설정 API를 Unity Pipeline으로 실행하고 `AssetDatabase.SaveAssets()`로 저장했다.
+
+```csharp
+UnityEditor.PlayerSettings.Android.targetSdkVersion = UnityEditor.AndroidSdkVersions.AndroidApiLevel36;
+UnityEditor.AssetDatabase.SaveAssets();
+```
+
+적용 직후 Unity API는 `AndroidApiLevel36`, 정숫값 36을 반환했고 `ProjectSettings.asset`의 `AndroidTargetSdkVersion`도 36으로 저장됐다. 후속 조회 시 Pipeline 연결이 없어 에디터 재접속·재시작 후 유지 여부와 실제 APK/AAB 값은 아직 검증하지 못했다. 저장 파일은 후속 읽기에서도 36이다. 이 세션에서 재현한 에디터 문제이며 다른 설치 전체에 대한 재현이나 공식 수정 버전은 확인하지 않았다. 드롭다운에서 다시 선택한 뒤에는 실제 저장값을 확인한다.
+
+### 개발용 빌드 메뉴와 기존 APK
 
 `Tools → Squapple → Build Android Development` 메뉴는 별도의 개발용 도구다. 현재 프로필의 Release 설정과 관계없이 코드에서 Development APK와 임시 식별자 `com.squapple.development`를 지정한다. Play 제출에는 이 메뉴를 사용하지 않는다.
 
@@ -68,7 +92,7 @@ Development 옵션, APK/AAB 전환 및 압축 방식의 의미는 [Unity 6.6 And
 
 ## 다음 작업 순서와 완료 기준
 
-1. **앱 식별자·대상 SDK 확정 및 빌드 용도 정리**: 식별자를 양쪽 플랫폼에 명시하고 대상 SDK를 API 36으로 조정한다. 테스트 APK·제출 AAB 프로필을 구분한다. 완료 기준은 활성 프로필과 유효 설정을 다시 읽었을 때 의도한 값이 나오는 것이다.
+1. **앱 식별자 확정 및 빌드 용도 정리**: 식별자를 양쪽 플랫폼에 명시하고 테스트 APK·제출 AAB 프로필을 구분한다. 대상 SDK 36은 적용했으며 에디터 재접속·최종 산출물에서도 유지되는지 확인한다.
 2. **광고 없는 출시 후보 점검**: 진단 설정·SDK·권한을 확인하고 최신 APK로 오프라인 플레이, 재실행, 저장, 광고 미노출을 검증한다. 완료 기준은 실제 산출물과 정책 설명이 일치하는 것이다.
 3. **배포 자료와 서명 준비**: 업로드 키, 앱 아이콘, 앱 전용 개인정보처리방침, 스토어 문구·스크린샷을 준비한다. 홈페이지 수정은 사용자가 별도로 진행하며 [홈페이지·개인정보처리방침 전달 문서](website-and-privacy-handoff.md)를 사용한다.
 4. **Play 내부 테스트용 AAB**: 제출용 빌드를 검증하고 Play 내부 테스트 경로로 설치·업데이트를 확인한다. 계정별 후속 테스트 요건은 Play Console에서 확인한다.
